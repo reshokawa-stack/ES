@@ -39,8 +39,8 @@ SOCKETIO_JS_CACHE = None
 # ============================================================
 
 DAY_DURATION = 120
-INITIAL_LAKE_FISH = 2500
-LAKE_CARRYING_CAPACITY = 5000
+INITIAL_LAKE_FISH = 5000
+LAKE_CARRYING_CAPACITY = 8000
 LAKE_GROWTH_RATE = 0.3
 DEPLETION_THRESHOLD = 300
 INITIAL_SATIETY = 5
@@ -1035,6 +1035,22 @@ def api_reset():
         print(f"[API] reset ERROR: {e}", flush=True)
         return jsonify({"error": str(e)})
 
+@app.route("/api/kick/<name>")
+def api_kick(name):
+    try:
+        kicked = False
+        for s, p in list(game.players.items()):
+            if p["name"] == name:
+                del game.players[s]
+                kicked = True
+                break
+        if kicked:
+            socketio.emit("teacher_update", game.get_teacher_state())
+            return jsonify({"ok": True})
+        return jsonify({"error": "Player not found"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
 @app.route("/api/skip")
 @app.route("/api/skip_day")
 def api_skip():
@@ -1269,7 +1285,7 @@ body{background:#faf7f2;color:#1a1a1a;font-family:'Segoe UI',system-ui,-apple-sy
 </div>
 <div class="big-stats">
 <div class="big-stat"><span class="big-stat-icon">📅</span><span class="big-stat-val" id="cur-day">0</span><span class="big-stat-lbl">Day</span></div>
-<div class="big-stat"><span class="big-stat-icon">🐟</span><span class="big-stat-val" id="lake-fish">2500</span><span class="big-stat-lbl">Population</span></div>
+<div class="big-stat"><span class="big-stat-icon">🐟</span><span class="big-stat-val" id="lake-fish">5000</span><span class="big-stat-lbl">Population</span></div>
 </div>
 <div class="controls" id="controls">
 <button class="success" onclick="sendCmd('start')">▶ Start Game</button>
@@ -1299,7 +1315,7 @@ body{background:#faf7f2;color:#1a1a1a;font-family:'Segoe UI',system-ui,-apple-sy
 <div class="player-table-wrap">
 <table class="player-table">
 <thead><tr>
-<th>#</th><th>Name</th><th>💰 Gold</th><th>🐟 Fish</th><th>⚓ Boat</th><th>Status</th>
+<th>#</th><th>Name</th><th>💰 Gold</th><th>🐟 Fish</th><th>⚓ Boat</th><th>Status</th><th></th>
 </tr></thead>
 <tbody id="player-tbody"></tbody>
 </table>
@@ -1321,6 +1337,13 @@ if(extra&&extra.speed)url+='?v='+extra.speed;
 fetch(url).then(function(r){return r.json()}).then(function(d){
 if(d.error)alert(d.error);
 }).catch(function(e){alert('Request failed: '+e.message)});
+}
+
+function kickPlayer(name){
+if(!confirm('Kick '+name+'?'))return;
+fetch('/api/kick/'+encodeURIComponent(name)).then(function(r){return r.json()}).then(function(d){
+if(d.error)alert(d.error);
+}).catch(function(e){alert('Kick failed: '+e.message)});
 }
 
 
@@ -1371,7 +1394,7 @@ socket.on('connected',function(d){console.log('connected',d.sid)});
 			else if(p.is_fishing)s='🎣 Fishing';
 			else if(p.attack_cooldown>0)s='⏳ CD '+p.attack_cooldown+'s';
 			else s='🟢 Idle';
-			return '<tr class="'+cls.join(' ')+'"><td>'+crown+rank+'</td><td><strong>'+p.name+'</strong></td><td>'+p.gold+'</td><td>'+p.fish+'</td><td>'+p.boat_name+'</td><td>'+s+'</td></tr>';
+			return '<tr class="'+cls.join(' ')+'"><td>'+crown+rank+'</td><td><strong>'+p.name+'</strong></td><td>'+p.gold+'</td><td>'+p.fish+'</td><td>'+p.boat_name+'</td><td>'+s+'</td><td style="cursor:pointer;color:#b43c3c;font-weight:700" onclick="kickPlayer(\''+p.name+'\')">✕</td></tr>';
 		}).join('');
 	}
 	var ns=E('notif-scroll');if(ns){
@@ -1402,7 +1425,7 @@ var cl=E('clock'); if(cl)cl.classList.remove('warning');
 
 
 socket.on('error_msg',function(data){alert(data.msg)});
-	socket.on("game_reset",function(){["day-label","clock","event-icon","event-name","event-desc","player-tbody","notif-scroll","cur-day","lake-fish"].forEach(function(id){var el=document.getElementById(id);if(!el)return;if(id==="day-label")el.textContent="Lobby";if(id==="clock"){el.textContent="2:00";el.classList.remove("warning")}if(id==="event-icon")el.textContent="-";if(id==="event-name")el.textContent="Waiting";if(id==="event-desc")el.textContent="Game has been reset";if(id==="player-tbody"||id==="notif-scroll")el.innerHTML="";if(id==="cur-day")el.textContent="0";if(id==="lake-fish")el.textContent="2500"})});
+		socket.on("game_reset",function(){["day-label","clock","event-icon","event-name","event-desc","player-tbody","notif-scroll","cur-day","lake-fish"].forEach(function(id){var el=document.getElementById(id);if(!el)return;if(id==="day-label")el.textContent="Lobby";if(id==="clock"){el.textContent="2:00";el.classList.remove("warning")}if(id==="event-icon")el.textContent="-";if(id==="event-name")el.textContent="Waiting";if(id==="event-desc")el.textContent="Game has been reset";if(id==="player-tbody"||id==="notif-scroll")el.innerHTML="";if(id==="cur-day")el.textContent="0";if(id==="lake-fish")el.textContent="5000"})});
 	var qr=E("qr-img");if(qr){qr.width=280;qr.height=280};var ec=E("event-card");if(ec)ec.classList.remove("big")
 
 </script>
